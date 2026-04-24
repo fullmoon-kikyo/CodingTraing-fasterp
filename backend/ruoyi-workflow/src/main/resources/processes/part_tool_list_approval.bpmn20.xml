@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://www.ruoyi.vip/workflow">
+    <process id="part_tool_list_approval" name="零件刀具清单审批" isExecutable="true">
+        <startEvent id="startEvent" name="提交"/>
+        <sequenceFlow id="flow_start_check" sourceRef="startEvent" targetRef="checkTask"/>
+
+        <userTask id="checkTask" name="校对" flowable:candidateGroups="tool_checker"/>
+        <sequenceFlow id="flow_check_audit" sourceRef="checkTask" targetRef="auditTask"/>
+
+        <userTask id="auditTask" name="审核" flowable:candidateGroups="tool_auditor"/>
+        <sequenceFlow id="flow_audit_effective" sourceRef="auditTask" targetRef="effectiveServiceTask"/>
+
+        <serviceTask id="effectiveServiceTask" name="业务生效" flowable:delegateExpression="${workflowBusinessCallbackDelegate}"/>
+        <sequenceFlow id="flow_effective_end" sourceRef="effectiveServiceTask" targetRef="endEvent"/>
+
+        <endEvent id="endEvent" name="结束"/>
+    </process>
+</definitions>

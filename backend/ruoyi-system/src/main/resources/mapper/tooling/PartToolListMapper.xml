@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.PartToolListMapper">
+
+    <resultMap type="PartToolList" id="PartToolListResult">
+        <id     property="listId"          column="list_id"           />
+        <result property="partNo"          column="part_no"           />
+        <result property="partName"        column="part_name"         />
+        <result property="productionUnit"  column="production_unit"   />
+        <result property="processNo"       column="process_no"        />
+        <result property="processName"     column="process_name"      />
+        <result property="toolId"          column="tool_id"           />
+        <result property="materialCode"    column="material_code"     />
+        <result property="toolName"        column="tool_name"         />
+        <result property="toolBrand"       column="tool_brand"        />
+        <result property="toolSpec"        column="tool_spec"         />
+        <result property="toolModel"       column="tool_model"        />
+        <result property="toolCategory"    column="tool_category"     />
+        <result property="manufacturer"    column="manufacturer"      />
+        <result property="toolLife"        column="tool_life"         />
+        <result property="toolLifeUnit"    column="tool_life_unit"    />
+        <result property="status"          column="status"            />
+        <result property="approvalStatus"  column="approval_status"   />
+        <result property="processInstanceId" column="process_instance_id" />
+        <result property="processDefinitionKey" column="process_definition_key" />
+        <result property="displayStatus"   column="display_status"    />
+        <result property="toolInfoChanged" column="tool_info_changed" />
+        <result property="createBy"        column="create_by"         />
+        <result property="createTime"      column="create_time"       />
+        <result property="updateBy"        column="update_by"         />
+        <result property="updateTime"      column="update_time"       />
+        <result property="remark"          column="remark"            />
+    </resultMap>
+
+    <sql id="toolInfoChangedExpr">
+        case when t.tool_id is null
+            or ifnull(p.material_code, '') != ifnull(t.material_code, '')
+            or ifnull(p.tool_name, '') != ifnull(t.tool_name, '')
+            or ifnull(p.tool_brand, '') != ifnull(t.tool_brand, '')
+            or ifnull(p.tool_spec, '') != ifnull(t.tool_spec, '')
+            or ifnull(p.tool_model, '') != ifnull(t.tool_model, '')
+            or ifnull(p.tool_category, '') != ifnull(t.tool_category, '')
+            or ifnull(p.manufacturer, '') != ifnull(t.manufacturer, '')
+        then 1 else 0 end
+    </sql>
+
+    <sql id="selectPartToolListVo">
+        select p.list_id, p.part_no, p.part_name, p.production_unit, p.process_no, p.process_name,
+               p.tool_id, p.material_code, p.tool_name, p.tool_brand, p.tool_spec, p.tool_model,
+               p.tool_category, p.manufacturer, p.tool_life, p.tool_life_unit, p.status,
+               p.approval_status, p.process_instance_id, p.process_definition_key,
+               p.create_by, p.create_time, p.update_by, p.update_time, p.remark,
+               <include refid="toolInfoChangedExpr"/> as tool_info_changed,
+               case when <include refid="toolInfoChangedExpr"/> = 1 then '刀具信息变化'
+                    when p.status = '1' then '停用'
+                    else '正常' end as display_status
+        from tool_part_tool_list p
+        left join tool_machining_tool t on p.tool_id = t.tool_id
+    </sql>
+
+    <select id="selectPartToolListList" parameterType="PartToolList" resultMap="PartToolListResult">
+        <include refid="selectPartToolListVo"/>
+        <where>
+            <if test="partNo != null and partNo != ''">
+                AND p.part_no like concat('%', #{partNo}, '%')
+            </if>
+            <if test="partName != null and partName != ''">
+                AND p.part_name like concat('%', #{partName}, '%')
+            </if>
+            <if test="productionUnit != null and productionUnit != ''">
+                AND p.production_unit like concat('%', #{productionUnit}, '%')
+            </if>
+            <if test="processNo != null and processNo != ''">
+                AND p.process_no like concat('%', #{processNo}, '%')
+            </if>
+            <if test="processName != null and processName != ''">
+                AND p.process_name like concat('%', #{processName}, '%')
+            </if>
+            <if test="materialCode != null and materialCode != ''">
+                AND p.material_code like concat('%', #{materialCode}, '%')
+            </if>
+            <if test="toolName != null and toolName != ''">
+                AND p.tool_name like concat('%', #{toolName}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND p.status = #{status}
+            </if>
+            <if test="approvalStatus != null and approvalStatus != ''">
+                AND p.approval_status = #{approvalStatus}
+            </if>
+        </where>
+        order by p.create_time desc, p.list_id desc
+    </select>
+
+    <select id="selectPartToolListById" parameterType="Long" resultMap="PartToolListResult">
+        <include refid="selectPartToolListVo"/>
+        where p.list_id = #{listId}
+    </select>
+
+    <insert id="insertPartToolList" parameterType="PartToolList" useGeneratedKeys="true" keyProperty="listId">
+        insert into tool_part_tool_list(
+            <if test="partNo != null and partNo != ''">part_no,</if>
+            <if test="partName != null and partName != ''">part_name,</if>
+            <if test="productionUnit != null">production_unit,</if>
+            <if test="processNo != null">process_no,</if>
+            <if test="processName != null">process_name,</if>
+            <if test="toolId != null">tool_id,</if>
+            <if test="materialCode != null and materialCode != ''">material_code,</if>
+            <if test="toolName != null and toolName != ''">tool_name,</if>
+            <if test="toolBrand != null">tool_brand,</if>
+            <if test="toolSpec != null">tool_spec,</if>
+            <if test="toolModel != null">tool_model,</if>
+            <if test="toolCategory != null">tool_category,</if>
+            <if test="manufacturer != null">manufacturer,</if>
+            <if test="toolLife != null">tool_life,</if>
+            <if test="toolLifeUnit != null">tool_life_unit,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="approvalStatus != null and approvalStatus != ''">approval_status,</if>
+            <if test="processInstanceId != null and processInstanceId != ''">process_instance_id,</if>
+            <if test="processDefinitionKey != null and processDefinitionKey != ''">process_definition_key,</if>
+            <if test="remark != null">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        ) values (
+            <if test="partNo != null and partNo != ''">#{partNo},</if>
+            <if test="partName != null and partName != ''">#{partName},</if>
+            <if test="productionUnit != null">#{productionUnit},</if>
+            <if test="processNo != null">#{processNo},</if>
+            <if test="processName != null">#{processName},</if>
+            <if test="toolId != null">#{toolId},</if>
+            <if test="materialCode != null and materialCode != ''">#{materialCode},</if>
+            <if test="toolName != null and toolName != ''">#{toolName},</if>
+            <if test="toolBrand != null">#{toolBrand},</if>
+            <if test="toolSpec != null">#{toolSpec},</if>
+            <if test="toolModel != null">#{toolModel},</if>
+            <if test="toolCategory != null">#{toolCategory},</if>
+            <if test="manufacturer != null">#{manufacturer},</if>
+            <if test="toolLife != null">#{toolLife},</if>
+            <if test="toolLifeUnit != null">#{toolLifeUnit},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="approvalStatus != null and approvalStatus != ''">#{approvalStatus},</if>
+            <if test="processInstanceId != null and processInstanceId != ''">#{processInstanceId},</if>
+            <if test="processDefinitionKey != null and processDefinitionKey != ''">#{processDefinitionKey},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <update id="updatePartToolList" parameterType="PartToolList">
+        update tool_part_tool_list
+        <set>
+            <if test="partNo != null and partNo != ''">part_no = #{partNo},</if>
+            <if test="partName != null and partName != ''">part_name = #{partName},</if>
+            <if test="productionUnit != null">production_unit = #{productionUnit},</if>
+            <if test="processNo != null">process_no = #{processNo},</if>
+            <if test="processName != null">process_name = #{processName},</if>
+            <if test="toolId != null">tool_id = #{toolId},</if>
+            <if test="materialCode != null and materialCode != ''">material_code = #{materialCode},</if>
+            <if test="toolName != null and toolName != ''">tool_name = #{toolName},</if>
+            <if test="toolBrand != null">tool_brand = #{toolBrand},</if>
+            <if test="toolSpec != null">tool_spec = #{toolSpec},</if>
+            <if test="toolModel != null">tool_model = #{toolModel},</if>
+            <if test="toolCategory != null">tool_category = #{toolCategory},</if>
+            <if test="manufacturer != null">manufacturer = #{manufacturer},</if>
+            <if test="toolLife != null">tool_life = #{toolLife},</if>
+            <if test="toolLifeUnit != null">tool_life_unit = #{toolLifeUnit},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="approvalStatus != null and approvalStatus != ''">approval_status = #{approvalStatus},</if>
+            <if test="processInstanceId != null">process_instance_id = #{processInstanceId},</if>
+            <if test="processDefinitionKey != null">process_definition_key = #{processDefinitionKey},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where list_id = #{listId}
+    </update>
+
+    <update id="updatePartToolListWorkflow" parameterType="PartToolList">
+        update tool_part_tool_list
+        <set>
+            <if test="approvalStatus != null and approvalStatus != ''">approval_status = #{approvalStatus},</if>
+            <if test="processInstanceId != null">process_instance_id = #{processInstanceId},</if>
+            <if test="processDefinitionKey != null">process_definition_key = #{processDefinitionKey},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where list_id = #{listId}
+    </update>
+
+    <update id="resetPartToolListApproval" parameterType="PartToolList">
+        update tool_part_tool_list
+        set approval_status = #{approvalStatus},
+            process_instance_id = null,
+            process_definition_key = null,
+            update_by = #{updateBy},
+            update_time = sysdate()
+        where list_id = #{listId}
+    </update>
+
+    <delete id="deletePartToolListById" parameterType="Long">
+        delete from tool_part_tool_list where list_id = #{listId}
+    </delete>
+
+    <delete id="deletePartToolListByIds" parameterType="Long">
+        delete from tool_part_tool_list where list_id in
+        <foreach collection="array" item="listId" open="(" separator="," close=")">
+            #{listId}
+        </foreach>
+    </delete>
+
+</mapper>

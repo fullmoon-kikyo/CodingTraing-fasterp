@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.MachiningToolMapper">
+
+    <resultMap type="MachiningTool" id="MachiningToolResult">
+        <id     property="toolId"        column="tool_id"        />
+        <result property="materialCode"  column="material_code"  />
+        <result property="toolName"      column="tool_name"      />
+        <result property="toolBrand"     column="tool_brand"     />
+        <result property="toolSpec"      column="tool_spec"      />
+        <result property="toolModel"     column="tool_model"     />
+        <result property="toolCategory"  column="tool_category"  />
+        <result property="manufacturer"  column="manufacturer"   />
+        <result property="status"        column="status"         />
+        <result property="materialVersion" column="material_version" />
+        <result property="materialStatus" column="material_status" />
+        <result property="approvalStatus" column="approval_status" />
+        <result property="changeApplyBy" column="change_apply_by" />
+        <result property="processInstanceId" column="process_instance_id" />
+        <result property="processDefinitionKey" column="process_definition_key" />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"        column="remark"         />
+    </resultMap>
+
+    <resultMap type="MachiningToolVersion" id="MachiningToolVersionResult">
+        <id     property="versionId"     column="version_id"     />
+        <result property="toolId"        column="tool_id"        />
+        <result property="materialCode"  column="material_code"  />
+        <result property="toolName"      column="tool_name"      />
+        <result property="toolBrand"     column="tool_brand"     />
+        <result property="toolSpec"      column="tool_spec"      />
+        <result property="toolModel"     column="tool_model"     />
+        <result property="toolCategory"  column="tool_category"  />
+        <result property="manufacturer"  column="manufacturer"   />
+        <result property="status"        column="status"         />
+        <result property="materialVersion" column="material_version" />
+        <result property="materialStatus" column="material_status" />
+        <result property="approvalStatus" column="approval_status" />
+        <result property="processInstanceId" column="process_instance_id" />
+        <result property="processDefinitionKey" column="process_definition_key" />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"        column="remark"         />
+        <result property="snapshotBy"    column="snapshot_by"    />
+        <result property="snapshotTime"  column="snapshot_time"  />
+    </resultMap>
+
+    <sql id="selectMachiningToolVo">
+        select tool_id, material_code, tool_name, tool_brand, tool_spec, tool_model, tool_category,
+               manufacturer, status, coalesce(nullif(material_version, ''), 'A01') as material_version,
+               material_status, approval_status, change_apply_by, process_instance_id, process_definition_key,
+               create_by, create_time, update_by, update_time, remark
+        from tool_machining_tool
+    </sql>
+
+    <sql id="machiningToolWhere">
+        <where>
+            <if test="materialCode != null and materialCode != ''">
+                AND material_code like concat('%', #{materialCode}, '%')
+            </if>
+            <if test="toolName != null and toolName != ''">
+                AND tool_name like concat('%', #{toolName}, '%')
+            </if>
+            <if test="toolBrand != null and toolBrand != ''">
+                AND tool_brand like concat('%', #{toolBrand}, '%')
+            </if>
+            <if test="toolSpec != null and toolSpec != ''">
+                AND tool_spec like concat('%', #{toolSpec}, '%')
+            </if>
+            <if test="toolModel != null and toolModel != ''">
+                AND tool_model like concat('%', #{toolModel}, '%')
+            </if>
+            <if test="toolCategory != null and toolCategory != ''">
+                AND tool_category like concat('%', #{toolCategory}, '%')
+            </if>
+            <if test="manufacturer != null and manufacturer != ''">
+                AND manufacturer like concat('%', #{manufacturer}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="materialVersion != null and materialVersion != ''">
+                AND material_version = #{materialVersion}
+            </if>
+            <if test="materialStatus != null and materialStatus != ''">
+                AND material_status = #{materialStatus}
+            </if>
+            <if test="approvalStatus != null and approvalStatus != ''">
+                AND approval_status = #{approvalStatus}
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectMachiningToolList" parameterType="MachiningTool" resultMap="MachiningToolResult">
+        <include refid="selectMachiningToolVo"/>
+        <include refid="machiningToolWhere"/>
+        order by create_time desc, tool_id desc
+    </select>
+
+    <select id="selectMachiningToolById" parameterType="Long" resultMap="MachiningToolResult">
+        <include refid="selectMachiningToolVo"/>
+        where tool_id = #{toolId}
+    </select>
+
+    <select id="checkMaterialCodeUnique" parameterType="String" resultMap="MachiningToolResult">
+        <include refid="selectMachiningToolVo"/>
+        where material_code = #{materialCode} limit 1
+    </select>
+
+    <update id="updateEmptyMaterialVersion" parameterType="String">
+        update tool_machining_tool
+        set material_version = #{materialVersion}
+        where material_version is null or material_version = ''
+    </update>
+
+    <select id="selectMachiningToolVersions" parameterType="Long" resultMap="MachiningToolVersionResult">
+        select version_id, tool_id, material_code, tool_name, tool_brand, tool_spec, tool_model, tool_category,
+               manufacturer, status, coalesce(nullif(material_version, ''), 'A01') as material_version,
+               material_status, approval_status, process_instance_id,
+               process_definition_key, create_by, create_time, update_by, update_time, remark, snapshot_by, snapshot_time
+        from tool_machining_tool_version
+        where tool_id = #{toolId}
+        order by material_version desc, version_id desc
+    </select>
+
+    <insert id="insertMachiningTool" parameterType="MachiningTool" useGeneratedKeys="true" keyProperty="toolId">
+        insert into tool_machining_tool(
+            <if test="materialCode != null and materialCode != ''">material_code,</if>
+            <if test="toolName != null and toolName != ''">tool_name,</if>
+            <if test="toolBrand != null">tool_brand,</if>
+            <if test="toolSpec != null">tool_spec,</if>
+            <if test="toolModel != null">tool_model,</if>
+            <if test="toolCategory != null">tool_category,</if>
+            <if test="manufacturer != null">manufacturer,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="materialVersion != null and materialVersion != ''">material_version,</if>
+            <if test="materialStatus != null and materialStatus != ''">material_status,</if>
+            <if test="approvalStatus != null and approvalStatus != ''">approval_status,</if>
+            <if test="changeApplyBy != null">change_apply_by,</if>
+            <if test="processInstanceId != null and processInstanceId != ''">process_instance_id,</if>
+            <if test="processDefinitionKey != null and processDefinitionKey != ''">process_definition_key,</if>
+            <if test="remark != null">remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time
+        ) values (
+            <if test="materialCode != null and materialCode != ''">#{materialCode},</if>
+            <if test="toolName != null and toolName != ''">#{toolName},</if>
+            <if test="toolBrand != null">#{toolBrand},</if>
+            <if test="toolSpec != null">#{toolSpec},</if>
+            <if test="toolModel != null">#{toolModel},</if>
+            <if test="toolCategory != null">#{toolCategory},</if>
+            <if test="manufacturer != null">#{manufacturer},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="materialVersion != null and materialVersion != ''">#{materialVersion},</if>
+            <if test="materialStatus != null and materialStatus != ''">#{materialStatus},</if>
+            <if test="approvalStatus != null and approvalStatus != ''">#{approvalStatus},</if>
+            <if test="changeApplyBy != null">#{changeApplyBy},</if>
+            <if test="processInstanceId != null and processInstanceId != ''">#{processInstanceId},</if>
+            <if test="processDefinitionKey != null and processDefinitionKey != ''">#{processDefinitionKey},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate()
+        )
+    </insert>
+
+    <insert id="insertMachiningToolVersion" parameterType="MachiningToolVersion">
+        insert ignore into tool_machining_tool_version(
+            tool_id, material_code, tool_name, tool_brand, tool_spec, tool_model, tool_category,
+            manufacturer, status, material_version, material_status, approval_status, process_instance_id,
+            process_definition_key, create_by, create_time, update_by, update_time, remark, snapshot_by, snapshot_time
+        ) values (
+            #{toolId}, #{materialCode}, #{toolName}, #{toolBrand}, #{toolSpec}, #{toolModel}, #{toolCategory},
+            #{manufacturer}, #{status}, #{materialVersion}, #{materialStatus}, #{approvalStatus}, #{processInstanceId},
+            #{processDefinitionKey}, #{createBy}, #{createTime}, #{updateBy}, #{updateTime}, #{remark}, #{snapshotBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateMachiningTool" parameterType="MachiningTool">
+        update tool_machining_tool
+        <set>
+            <if test="materialCode != null and materialCode != ''">material_code = #{materialCode},</if>
+            <if test="toolName != null and toolName != ''">tool_name = #{toolName},</if>
+            <if test="toolBrand != null">tool_brand = #{toolBrand},</if>
+            <if test="toolSpec != null">tool_spec = #{toolSpec},</if>
+            <if test="toolModel != null">tool_model = #{toolModel},</if>
+            <if test="toolCategory != null">tool_category = #{toolCategory},</if>
+            <if test="manufacturer != null">manufacturer = #{manufacturer},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="materialVersion != null and materialVersion != ''">material_version = #{materialVersion},</if>
+            <if test="materialStatus != null and materialStatus != ''">material_status = #{materialStatus},</if>
+            <if test="approvalStatus != null and approvalStatus != ''">approval_status = #{approvalStatus},</if>
+            <if test="changeApplyBy != null">change_apply_by = #{changeApplyBy},</if>
+            <if test="processInstanceId != null">process_instance_id = #{processInstanceId},</if>
+            <if test="processDefinitionKey != null">process_definition_key = #{processDefinitionKey},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where tool_id = #{toolId}
+    </update>
+
+    <update id="resetMachiningToolApproval" parameterType="MachiningTool">
+        update tool_machining_tool
+        set material_status = #{materialStatus},
+            approval_status = #{approvalStatus},
+            change_apply_by = #{changeApplyBy},
+            process_instance_id = null,
+            process_definition_key = null,
+            update_by = #{updateBy},
+            update_time = sysdate()
+        where tool_id = #{toolId}
+    </update>
+
+    <update id="updateMachiningToolWorkflow" parameterType="MachiningTool">
+        update tool_machining_tool
+        <set>
+            <if test="materialStatus != null and materialStatus != ''">material_status = #{materialStatus},</if>
+            <if test="materialVersion != null and materialVersion != ''">material_version = #{materialVersion},</if>
+            <if test="approvalStatus != null and approvalStatus != ''">approval_status = #{approvalStatus},</if>
+            change_apply_by = #{changeApplyBy},
+            process_instance_id = #{processInstanceId},
+            process_definition_key = #{processDefinitionKey},
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate()
+        </set>
+        where tool_id = #{toolId}
+    </update>
+
+    <delete id="deleteMachiningToolById" parameterType="Long">
+        delete from tool_machining_tool where tool_id = #{toolId}
+    </delete>
+
+    <delete id="deleteMachiningToolByIds" parameterType="Long">
+        delete from tool_machining_tool where tool_id in
+        <foreach collection="array" item="toolId" open="(" separator="," close=")">
+            #{toolId}
+        </foreach>
+    </delete>
+
+</mapper>
