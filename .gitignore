@@ -1,7 +1,48 @@
 .tools/
 logs/
 uploads/
+
+# Frontend build artifacts
 frontend/node_modules/
 frontend/dist/
-backend/**/target/
+frontend/package-lock.json
+frontend/yarn.lock
 
+# Backend build artifacts
+backend/**/target/
+backend/.gradle/
+backend/build/
+backend/.apt_generated
+backend/.classpath
+backend/.factorypath
+backend/.project
+backend/.settings/
+backend/.springBeans
+backend/*.iws
+backend/*.iml
+backend/*.ipr
+backend/rebel.xml
+backend/nbproject/private/
+backend/nbbuild/
+backend/dist/
+backend/nbdist/
+backend/.nb-gradle/
+backend/*.xml.versionsBackup
+
+# Vendored UI workspace
+backend/ruoyi-ui/node_modules/
+backend/ruoyi-ui/dist/
+backend/ruoyi-ui/package-lock.json
+backend/ruoyi-ui/yarn.lock
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.local
+*.log
+*.swp
