@@ -21,7 +21,7 @@
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="状态" clearable style="width: 140px">
-          <el-option v-for="dict in sys_normal_disable" :key="dict.value" :label="dict.label" :value="dict.value" />
+          <el-option v-for="dict in usageStatusOptions" :key="dict.value" :label="dict.label" :value="dict.value" />
         </el-select>
       </el-form-item>
       <el-form-item label="流程状态" prop="approvalStatus">
@@ -69,7 +69,7 @@
       <el-table-column label="状态" align="center" prop="displayStatus" width="130">
         <template #default="scope">
           <el-tag v-if="isToolChanged(scope.row)" type="info">刀具信息变化</el-tag>
-          <dict-tag v-else :options="sys_normal_disable" :value="scope.row.status" />
+          <el-tag v-else :type="usageStatusTagType(scope.row.status)">{{ usageStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="流程状态" align="center" prop="approvalStatus" width="110">
@@ -189,7 +189,7 @@
           <el-col :span="12">
             <el-form-item label="状态" prop="status">
               <el-radio-group v-model="form.status">
-                <el-radio v-for="dict in sys_normal_disable" :key="dict.value" :value="dict.value">{{ dict.label }}</el-radio>
+                <el-radio v-for="dict in usageStatusOptions" :key="dict.value" :value="dict.value">{{ dict.label }}</el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
@@ -271,9 +271,11 @@
 <script setup name="PartToolList">
 import { listPartToolList, getPartToolList, delPartToolList, addPartToolList, updatePartToolList, submitPartToolList } from "@/api/tooling/partToolList"
 import { listMachiningTool } from "@/api/tooling/machiningTool"
+import { TOOL_USAGE_STATUS_OPTIONS, getToolUsageStatusLabel, getToolUsageStatusTagType } from "@/utils/toolingStatus"
 
 const { proxy } = getCurrentInstance()
-const { sys_normal_disable, tool_approval_status } = useDict("sys_normal_disable", "tool_approval_status")
+const { tool_usage_status, tool_approval_status } = useDict("tool_usage_status", "tool_approval_status")
+const usageStatusOptions = computed(() => tool_usage_status.value?.length ? tool_usage_status.value : TOOL_USAGE_STATUS_OPTIONS)
 
 const partToolList = ref([])
 const open = ref(false)
@@ -325,6 +327,14 @@ const { queryParams, form, toolQueryParams, rules } = toRefs(data)
 
 function isToolChanged(row) {
   return Number(row.toolInfoChanged) === 1
+}
+
+function usageStatusLabel(status) {
+  return getToolUsageStatusLabel(status, usageStatusOptions.value)
+}
+
+function usageStatusTagType(status) {
+  return getToolUsageStatusTagType(status, usageStatusOptions.value)
 }
 
 function tableRowClassName({ row }) {

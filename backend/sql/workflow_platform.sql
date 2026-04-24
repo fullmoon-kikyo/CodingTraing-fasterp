@@ -14,7 +14,7 @@ prepare stmt from @sql; execute stmt; deallocate prepare stmt;
 
 set @sql = (
   select if(count(*) = 0,
-    'alter table tool_machining_tool add column material_status varchar(20) not null default ''draft'' comment ''物料状态（draft草稿 processing审签中 effective生效）'' after status',
+    'alter table tool_machining_tool add column material_status varchar(20) not null default ''draft'' comment ''物料状态（draft草稿 processing审签中 effective已归档）'' after status',
     'select 1'
   )
   from information_schema.columns
@@ -57,7 +57,8 @@ set material_version = 'A01'
 where material_version is null or material_version = '';
 
 alter table tool_machining_tool modify column material_version varchar(10) not null default 'A01' comment '物料版本';
-alter table tool_machining_tool modify column material_status varchar(20) not null default 'draft' comment '物料状态（draft草稿 processing审签中 effective生效）';
+alter table tool_machining_tool modify column status char(1) default '0' comment '状态（0生效 1失效）';
+alter table tool_machining_tool modify column material_status varchar(20) not null default 'draft' comment '物料状态（draft草稿 processing审签中 effective已归档）';
 alter table tool_machining_tool modify column approval_status varchar(20) not null default 'draft' comment '流程状态（draft待提交 processing审批流 effective审签完成 rejected驳回 change_processing变更审批中 changing变更中 change_rejected变更驳回）';
 
 update tool_machining_tool
@@ -83,9 +84,9 @@ create table if not exists tool_machining_tool_version (
   tool_model varchar(100) default '' comment '刀具型号',
   tool_category varchar(100) default '' comment '刀具类别',
   manufacturer varchar(100) default '' comment '生产厂家',
-  status char(1) default '0' comment '状态（0正常 1停用）',
+  status char(1) default '0' comment '状态（0生效 1失效）',
   material_version varchar(10) not null comment '物料版本',
-  material_status varchar(20) not null default 'effective' comment '物料状态',
+  material_status varchar(20) not null default 'effective' comment '物料状态（draft草稿 processing审签中 effective已归档）',
   approval_status varchar(20) not null default 'effective' comment '流程状态',
   process_instance_id varchar(64) default null comment '流程实例ID',
   process_definition_key varchar(100) default null comment '流程定义Key',
@@ -100,6 +101,9 @@ create table if not exists tool_machining_tool_version (
   unique key uk_tool_version (tool_id, material_version),
   key idx_tool_version_tool_id (tool_id)
 ) engine=innodb auto_increment=1 default charset=utf8mb4 collate=utf8mb4_general_ci comment='机加刀具历史版本快照表';
+
+alter table tool_machining_tool_version modify column status char(1) default '0' comment '状态（0生效 1失效）';
+alter table tool_machining_tool_version modify column material_status varchar(20) not null default 'effective' comment '物料状态（draft草稿 processing审签中 effective已归档）';
 
 insert ignore into tool_machining_tool_version(
   tool_id, material_code, tool_name, tool_brand, tool_spec, tool_model, tool_category,
@@ -213,6 +217,7 @@ set @sql = (
 prepare stmt from @sql; execute stmt; deallocate prepare stmt;
 
 alter table tool_part_tool_list modify column approval_status varchar(20) not null default 'draft' comment '流程状态（draft待提交 processing审批流 effective审签完成 rejected驳回）';
+alter table tool_part_tool_list modify column status char(1) default '0' comment '状态（0生效 1失效）';
 
 update tool_part_tool_list
 set approval_status = 'effective'
@@ -318,6 +323,22 @@ where not exists (select 1 from wf_business_binding where business_type = 'machi
 insert into wf_business_binding(business_type, business_name, process_definition_key, status, create_by, create_time, remark)
 select 'part_tool_list', '零件刀具清单', 'part_tool_list_approval', '0', 'admin', sysdate(), '内置零件刀具清单审批流程'
 where not exists (select 1 from wf_business_binding where business_type = 'part_tool_list');
+
+insert into sys_dict_type(dict_id, dict_name, dict_type, status, create_by, create_time, remark)
+select 100, '刀具使用状态', 'tool_usage_status', '0', 'admin', sysdate(), '刀具业务使用状态列表'
+where not exists (select 1 from sys_dict_type where dict_type = 'tool_usage_status');
+
+update sys_dict_data set dict_label = '生效', list_class = 'success'
+where dict_type = 'tool_usage_status' and dict_value = '0';
+update sys_dict_data set dict_label = '失效', list_class = 'danger'
+where dict_type = 'tool_usage_status' and dict_value = '1';
+
+insert into sys_dict_data(dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class, is_default, status, create_by, create_time, update_by, update_time, remark)
+select 20100, 1, '生效', '0', 'tool_usage_status', '', 'success', 'Y', '0', 'admin', sysdate(), '', null, '生效状态'
+where not exists (select 1 from sys_dict_data where dict_type = 'tool_usage_status' and dict_value = '0');
+insert into sys_dict_data(dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class, is_default, status, create_by, create_time, update_by, update_time, remark)
+select 20101, 2, '失效', '1', 'tool_usage_status', '', 'danger', 'N', '0', 'admin', sysdate(), '', null, '失效状态'
+where not exists (select 1 from sys_dict_data where dict_type = 'tool_usage_status' and dict_value = '1');
 
 update sys_dict_data set dict_label = '待提交', list_class = 'info'
 where dict_type = 'tool_approval_status' and dict_value = 'draft';

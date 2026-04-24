@@ -4,7 +4,12 @@
       <app-link v-if="onlyOneChild.meta" :to="resolvePath(onlyOneChild.path, onlyOneChild.query)">
         <el-menu-item :index="resolvePath(onlyOneChild.path)" :class="{ 'submenu-title-noDropdown': !isNest }">
           <svg-icon :icon-class="onlyOneChild.meta.icon || (item.meta && item.meta.icon)"/>
-          <template #title><span class="menu-title" :title="hasTitle(onlyOneChild.meta.title)">{{ onlyOneChild.meta.title }}</span></template>
+          <template #title>
+            <div class="sidebar-menu-title">
+              <span class="menu-title" :title="hasTitle(onlyOneChild.meta.title)">{{ onlyOneChild.meta.title }}</span>
+              <span v-if="showWorkflowTodoBadge(onlyOneChild)" class="workflow-todo-badge">{{ workflowTodoBadgeText }}</span>
+            </div>
+          </template>
         </el-menu-item>
       </app-link>
     </template>
@@ -12,7 +17,10 @@
     <el-sub-menu v-else ref="subMenu" :index="resolvePath(item.path)" teleported>
       <template v-if="item.meta" #title>
         <svg-icon :icon-class="item.meta && item.meta.icon" />
-        <span class="menu-title" :title="hasTitle(item.meta.title)">{{ item.meta.title }}</span>
+        <div class="sidebar-menu-title">
+          <span class="menu-title" :title="hasTitle(item.meta.title)">{{ item.meta.title }}</span>
+          <span v-if="showWorkflowTodoBadge(item)" class="workflow-todo-badge">{{ workflowTodoBadgeText }}</span>
+        </div>
       </template>
 
       <sidebar-item
@@ -31,6 +39,7 @@
 import { isExternal } from '@/utils/validate'
 import AppLink from './Link'
 import { getNormalPath } from '@/utils/ruoyi'
+import useWorkflowStore from '@/store/modules/workflow'
 
 const props = defineProps({
   // route object
@@ -49,6 +58,8 @@ const props = defineProps({
 })
 
 const onlyOneChild = ref({})
+const workflowStore = useWorkflowStore()
+const workflowTodoBadgeText = computed(() => workflowStore.todoCount > 99 ? '99+' : String(workflowStore.todoCount))
 
 function hasOneShowingChild(children = [], parent) {
   if (!children) {
@@ -97,4 +108,42 @@ function hasTitle(title){
     return ""
   }
 }
+
+function showWorkflowTodoBadge(route) {
+  return isWorkflowMenu(route) && workflowStore.todoCount > 0
+}
+
+function isWorkflowMenu(route) {
+  return route?.path === 'workflow' || route?.path === '/workflow' || route?.meta?.title === '流程管理'
+}
 </script>
+
+<style scoped>
+.sidebar-menu-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workflow-todo-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  color: #ffffff !important;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+  border: 1px solid rgba(248, 113, 113, 0.88);
+  border-radius: 999px;
+  box-shadow: 0 6px 14px rgba(239, 68, 68, 0.28);
+}
+
+.workflow-todo-badge * {
+  color: #ffffff !important;
+}
+</style>

@@ -21,7 +21,7 @@
             <div class="advanced-query-title">更多查询条件</div>
             <el-form-item label="使用状态" prop="status">
               <el-select v-model="queryParams.status" placeholder="使用状态" clearable class="advanced-query-control">
-                <el-option v-for="dict in sys_normal_disable" :key="dict.value" :label="dict.label" :value="dict.value" />
+                <el-option v-for="dict in usageStatusOptions" :key="dict.value" :label="dict.label" :value="dict.value" />
               </el-select>
             </el-form-item>
             <el-form-item label="物料状态" prop="materialStatus">
@@ -52,9 +52,6 @@
         <el-button type="danger" plain icon="Delete" :disabled="multiple" @click="handleDelete" v-hasPermi="['tooling:machiningTool:remove']">删除</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button v-if="hasForceRemovePerm" type="danger" plain icon="DeleteFilled" :disabled="forceMultiple" @click="handleForceDelete">强制删除</el-button>
-      </el-col>
-      <el-col :span="1.5">
         <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['tooling:machiningTool:export']">导出</el-button>
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
@@ -64,6 +61,7 @@
       ref="tableRef"
       v-loading="loading"
       :data="machiningToolList"
+      :row-class-name="getTableRowClassName"
       @selection-change="handleSelectionChange"
       @row-click="handleRowClick"
     >
@@ -83,7 +81,7 @@
       <el-table-column label="生产厂家" align="center" prop="manufacturer" min-width="140" :show-overflow-tooltip="true" />
       <el-table-column label="使用状态" align="center" prop="status" width="100">
         <template #default="scope">
-          <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
+          <el-tag :type="usageStatusTagType(scope.row.status)">{{ usageStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="物料状态" align="center" width="100">
@@ -103,16 +101,73 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="390" fixed="right" class-name="small-padding fixed-width">
-        <template #default="scope">
-          <el-button v-if="canEdit(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['tooling:machiningTool:edit']">修改</el-button>
-          <el-button v-if="canDelete(scope.row)" link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['tooling:machiningTool:remove']">删除</el-button>
-          <el-button v-if="hasForceRemovePerm" link type="danger" icon="DeleteFilled" @click="handleForceDelete(scope.row)">强制删除</el-button>
-          <el-button v-if="canSubmit(scope.row)" link type="primary" icon="Promotion" @click="openApproval(scope.row)" v-hasPermi="['tooling:machiningTool:submit']">提交</el-button>
-          <el-button link type="primary" icon="Tickets" @click="openVersionDialog(scope.row)" v-hasPermi="['tooling:machiningTool:query']">历史版本</el-button>
-        </template>
-      </el-table-column>
     </el-table>
+
+    <teleport to="body">
+      <div
+        v-if="hoverToolbar.visible && hoverToolbar.row && hasAnyHoverActions(hoverToolbar.row)"
+        class="machining-tool-hoverbar"
+        :style="hoverToolbarStyle"
+      >
+        <div class="machining-tool-hoverbar__shell">
+          <el-button
+            v-if="canEdit(hoverToolbar.row)"
+            class="machining-tool-pill"
+            v-hasPermi="EDIT_PERMS"
+            @click.stop="handleUpdate(hoverToolbar.row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            class="machining-tool-pill machining-tool-pill--soft"
+            v-hasPermi="QUERY_PERMS"
+            @click.stop="openVersionDialog(hoverToolbar.row)"
+          >
+            版本
+          </el-button>
+          <el-popover
+            v-if="hasSecondaryActions(hoverToolbar.row)"
+            :visible="actionPopoverRowId === hoverToolbar.row.toolId"
+            trigger="manual"
+            placement="bottom-end"
+            :offset="10"
+            :show-arrow="false"
+            popper-class="machining-tool-action-popper"
+            @show="clearActionPopoverTimer"
+            @hide="clearActionPopoverTimer"
+          >
+            <template #reference>
+              <el-button
+                circle
+                class="machining-tool-actions__more"
+                icon="MoreFilled"
+                @mouseenter.stop="openActionPopover(hoverToolbar.row.toolId)"
+                @mouseleave.stop="scheduleCloseActionPopover(hoverToolbar.row.toolId)"
+                @click.stop="toggleActionPopover(hoverToolbar.row.toolId)"
+              />
+            </template>
+            <div
+              class="machining-tool-action-menu"
+              @mouseenter="openActionPopover(hoverToolbar.row.toolId)"
+              @mouseleave="scheduleCloseActionPopover(hoverToolbar.row.toolId)"
+            >
+              <el-button
+                v-for="action in getSecondaryActions(hoverToolbar.row)"
+                :key="action.key"
+                link
+                :type="action.type"
+                :icon="action.icon"
+                class="machining-tool-action-menu__item"
+                v-hasPermi="action.perms"
+                @click.stop="handleSecondaryAction(action.key, hoverToolbar.row)"
+              >
+                {{ action.label }}
+              </el-button>
+            </div>
+          </el-popover>
+        </div>
+      </div>
+    </teleport>
 
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
@@ -163,7 +218,7 @@
           <el-col :span="12">
             <el-form-item label="使用状态" prop="status">
               <el-radio-group v-model="form.status">
-                <el-radio v-for="dict in sys_normal_disable" :key="dict.value" :value="dict.value">{{ dict.label }}</el-radio>
+                <el-radio v-for="dict in usageStatusOptions" :key="dict.value" :value="dict.value">{{ dict.label }}</el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
@@ -238,7 +293,7 @@
         <el-table-column label="生产厂家" align="center" prop="manufacturer" min-width="140" :show-overflow-tooltip="true" />
         <el-table-column label="使用状态" align="center" prop="status" width="100">
           <template #default="scope">
-            <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
+            <el-tag :type="usageStatusTagType(scope.row.status)">{{ usageStatusLabel(scope.row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="物料状态" align="center" width="100">
@@ -283,16 +338,14 @@ import {
   listMachiningToolVersions
 } from "@/api/tooling/machiningTool"
 import { checkPermi, checkRole } from "@/utils/permission"
+import { TOOL_MATERIAL_STATUS_OPTIONS, TOOL_USAGE_STATUS_OPTIONS, getToolMaterialStatusLabel, getToolUsageStatusLabel, getToolUsageStatusTagType } from "@/utils/toolingStatus"
 import useUserStore from "@/store/modules/user"
 
 const { proxy } = getCurrentInstance()
-const { sys_normal_disable, tool_approval_status } = useDict("sys_normal_disable", "tool_approval_status")
+const { tool_usage_status, tool_approval_status } = useDict("tool_usage_status", "tool_approval_status")
 const userStore = useUserStore()
-const materialStatusOptions = [
-  { label: "草稿", value: "draft" },
-  { label: "审签中", value: "processing" },
-  { label: "生效", value: "effective" }
-]
+const usageStatusOptions = computed(() => tool_usage_status.value?.length ? tool_usage_status.value : TOOL_USAGE_STATUS_OPTIONS)
+const materialStatusOptions = TOOL_MATERIAL_STATUS_OPTIONS
 const STATUS_DRAFT = "draft"
 const STATUS_PROCESSING = "processing"
 const STATUS_EFFECTIVE = "effective"
@@ -300,6 +353,13 @@ const STATUS_REJECTED = "rejected"
 const STATUS_CHANGE_PROCESSING = "change_processing"
 const STATUS_CHANGING = "changing"
 const STATUS_CHANGE_REJECTED = "change_rejected"
+const EDIT_PERMS = ["tooling:machiningTool:edit"]
+const REMOVE_PERMS = ["tooling:machiningTool:remove"]
+const SUBMIT_PERMS = ["tooling:machiningTool:submit"]
+const QUERY_PERMS = ["tooling:machiningTool:query"]
+const HOVER_TOOLBAR_ANCHOR_RATIO = 0.7
+const HOVER_TOOLBAR_MIN_LEFT = 220
+const HOVER_TOOLBAR_VERTICAL_OFFSET = -10
 
 const machiningToolList = ref([])
 const tableRef = ref()
@@ -319,9 +379,17 @@ const approvalTitle = ref("提交审批")
 const versionOpen = ref(false)
 const versionLoading = ref(false)
 const versionList = ref([])
+const actionPopoverRowId = ref(undefined)
+const hoverToolbar = reactive({
+  visible: false,
+  row: null,
+  top: 0,
+  left: 0
+})
 const hasForceRemovePerm = checkPermi(["tooling:machiningTool:forceRemove"])
 const hasToolAuditRole = checkRole(["admin", "tool_auditor"])
 const currentUsername = computed(() => userStore.name)
+let actionPopoverTimer = null
 
 const data = reactive({
   form: {},
@@ -372,16 +440,15 @@ function resolveMaterialStatus(materialStatus, approvalStatus) {
 
 function materialStatusLabel(materialStatus, approvalStatus) {
   const status = resolveMaterialStatus(materialStatus, approvalStatus)
-  if (isDraftMaterialStatus(status)) {
-    return "草稿"
-  }
-  if (status === STATUS_PROCESSING) {
-    return "审签中"
-  }
-  if (status === STATUS_EFFECTIVE) {
-    return "生效"
-  }
-  return "未知"
+  return getToolMaterialStatusLabel(status)
+}
+
+function usageStatusLabel(status) {
+  return getToolUsageStatusLabel(status, usageStatusOptions.value)
+}
+
+function usageStatusTagType(status) {
+  return getToolUsageStatusTagType(status, usageStatusOptions.value)
 }
 
 function materialStatusTagType(materialStatus, approvalStatus) {
@@ -497,8 +564,96 @@ function canSubmit(row) {
   return (hasToolAuditRole || isApplicant(row)) && isSubmittableApprovalStatus(row?.approvalStatus)
 }
 
+function clearActionPopoverTimer() {
+  if (actionPopoverTimer) {
+    clearTimeout(actionPopoverTimer)
+    actionPopoverTimer = null
+  }
+}
+
+function closeHoverToolbar() {
+  closeActionPopover()
+  hoverToolbar.visible = false
+  hoverToolbar.row = null
+}
+
+function openHoverToolbar() {
+  if (hoverToolbar.row) {
+    hoverToolbar.visible = true
+  }
+}
+
+function openActionPopover(toolId) {
+  clearActionPopoverTimer()
+  actionPopoverRowId.value = toolId
+  openHoverToolbar()
+}
+
+function scheduleCloseActionPopover(toolId) {
+  clearActionPopoverTimer()
+  actionPopoverTimer = setTimeout(() => {
+    if (actionPopoverRowId.value === toolId) {
+      actionPopoverRowId.value = undefined
+    }
+  }, 140)
+}
+
+function toggleActionPopover(toolId) {
+  clearActionPopoverTimer()
+  actionPopoverRowId.value = actionPopoverRowId.value === toolId ? undefined : toolId
+}
+
+function closeActionPopover() {
+  clearActionPopoverTimer()
+  actionPopoverRowId.value = undefined
+}
+
+const hoverToolbarStyle = computed(() => ({
+  top: `${hoverToolbar.top}px`,
+  left: `${hoverToolbar.left}px`
+}))
+
+function getSecondaryActions(row) {
+  const actions = []
+  if (checkPermi(SUBMIT_PERMS) && canSubmit(row)) {
+    actions.push({ key: "submit", label: "提交", icon: "Promotion", type: "primary", perms: SUBMIT_PERMS })
+  }
+  if (checkPermi(REMOVE_PERMS) && canDelete(row)) {
+    actions.push({ key: "delete", label: "删除", icon: "Delete", type: "primary", perms: REMOVE_PERMS })
+  }
+  if (hasForceRemovePerm) {
+    actions.push({ key: "forceDelete", label: "强制删除", icon: "DeleteFilled", type: "danger", perms: ["tooling:machiningTool:forceRemove"] })
+  }
+  return actions
+}
+
+function hasSecondaryActions(row) {
+  return getSecondaryActions(row).length > 0
+}
+
+function hasAnyHoverActions(row) {
+  return (checkPermi(EDIT_PERMS) && canEdit(row)) || checkPermi(QUERY_PERMS) || hasSecondaryActions(row)
+}
+
+function handleSecondaryAction(actionKey, row) {
+  closeActionPopover()
+  if (actionKey === "submit") {
+    openApproval(row)
+    return
+  }
+  if (actionKey === "delete") {
+    handleDelete(row)
+    return
+  }
+  if (actionKey === "forceDelete") {
+    handleForceDelete(row)
+  }
+}
+
 function getList() {
   loading.value = true
+  closeHoverToolbar()
+  closeActionPopover()
   listMachiningTool(queryParams.value).then(response => {
     machiningToolList.value = response.rows
     total.value = response.total
@@ -561,6 +716,49 @@ function handleSelectionChange(selection) {
   single.value = selection.length !== 1 || !canEdit(selection[0])
   multiple.value = !selection.length || selection.some(item => !canDelete(item))
   forceMultiple.value = !selection.length
+  syncHoverToolbar(selection)
+}
+
+function updateHoverToolbarPosition(cell) {
+  const rowElement = cell?.closest("tr")
+  if (!rowElement) {
+    return
+  }
+  const rowRect = rowElement.getBoundingClientRect()
+  hoverToolbar.top = rowRect.top + rowRect.height / 2 + HOVER_TOOLBAR_VERTICAL_OFFSET
+  hoverToolbar.left = Math.max(HOVER_TOOLBAR_MIN_LEFT, rowRect.left + rowRect.width * HOVER_TOOLBAR_ANCHOR_RATIO)
+}
+
+function updateHoverToolbarPositionByRow(row) {
+  const rowIndex = machiningToolList.value.findIndex(item => item.toolId === row?.toolId)
+  const tableElement = tableRef.value?.$el
+  if (rowIndex < 0 || !tableElement) {
+    return
+  }
+  const rowElement = tableElement.querySelectorAll(".el-table__body-wrapper tbody tr")[rowIndex]
+  if (!rowElement) {
+    return
+  }
+  updateHoverToolbarPosition(rowElement)
+}
+
+function syncHoverToolbar(selection = selectedRows.value) {
+  if (selection.length !== 1 || !hasAnyHoverActions(selection[0])) {
+    closeHoverToolbar()
+    return
+  }
+  hoverToolbar.row = selection[0]
+  nextTick(() => {
+    if (selectedRows.value.length !== 1 || selectedRows.value[0]?.toolId !== selection[0]?.toolId) {
+      return
+    }
+    updateHoverToolbarPositionByRow(selection[0])
+    openHoverToolbar()
+  })
+}
+
+function getTableRowClassName({ row }) {
+  return hoverToolbar.row?.toolId === row?.toolId ? "machining-tool-row-hovered" : ""
 }
 
 function handleRowClick(row, column, event) {
@@ -581,7 +779,7 @@ function handleUpdate(row) {
   reset()
   const target = row?.toolId ? row : selectedRows.value[0]
   if (!canEdit(target)) {
-    proxy.$modal.msgWarning("已生效物料不可直接修改；可发起修改申请，变更通过后仅变更申请人可编辑")
+    proxy.$modal.msgWarning("已归档物料不可直接修改；可发起修改申请，变更通过后仅变更申请人可编辑")
     return
   }
   if (canApplyChange(target)) {
@@ -711,6 +909,25 @@ function openVersionDialog(row) {
   })
 }
 
+onMounted(() => {
+  window.addEventListener("scroll", closeHoverToolbar, true)
+  window.addEventListener("resize", closeHoverToolbar)
+})
+
+onActivated(() => {
+  closeHoverToolbar()
+})
+
+onDeactivated(() => {
+  closeHoverToolbar()
+})
+
+onBeforeUnmount(() => {
+  clearActionPopoverTimer()
+  window.removeEventListener("scroll", closeHoverToolbar, true)
+  window.removeEventListener("resize", closeHoverToolbar)
+})
+
 getList()
 </script>
 
@@ -821,8 +1038,116 @@ getList()
 }
 
 .process-status-changing {
-  color: #365314;
-  background-color: #f7fee7;
-  border-color: #bef264 #bef264 #bef264 #65a30d;
+  color: #a16207;
+  background-color: #fefce8;
+  border-color: #fde68a #fde68a #fde68a #ca8a04;
+}
+
+.machining-tool-hoverbar {
+  position: fixed;
+  z-index: 2010;
+  transform: translate(-100%, -50%);
+  pointer-events: auto;
+}
+
+.machining-tool-hoverbar__shell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  background: rgba(244, 247, 252, 0.94);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+.machining-tool-pill {
+  height: 28px;
+  margin-left: 0;
+  padding: 0 11px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.machining-tool-pill:hover {
+  color: #020617;
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.machining-tool-pill--soft {
+  color: #475569;
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(15, 23, 42, 0.06);
+  opacity: 0.92;
+}
+
+.machining-tool-pill--soft:hover {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
+}
+
+.machining-tool-actions__more {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  margin-left: 0;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.machining-tool-actions__more:hover,
+.machining-tool-actions__more:focus-visible {
+  color: #020617;
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.machining-tool-action-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 124px;
+}
+
+.machining-tool-action-menu__item {
+  justify-content: flex-start;
+  width: 100%;
+  height: 36px;
+  margin-left: 0;
+  padding: 0 10px;
+  border-radius: 8px;
+}
+
+.machining-tool-action-menu__item:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+:deep(.machining-tool-action-popper) {
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(20px) saturate(130%);
+}
+
+:deep(.el-table__body tr.machining-tool-row-hovered > td.el-table__cell) {
+  background: linear-gradient(90deg, rgba(249, 250, 251, 0.96) 0%, rgba(245, 247, 250, 0.98) 100%);
 }
 </style>

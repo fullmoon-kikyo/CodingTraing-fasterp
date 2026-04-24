@@ -31,11 +31,14 @@ import variables from '@/assets/styles/variables.module.scss'
 import useAppStore from '@/store/modules/app'
 import useSettingsStore from '@/store/modules/settings'
 import usePermissionStore from '@/store/modules/permission'
+import useWorkflowStore from '@/store/modules/workflow'
 
 const route = useRoute()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const permissionStore = usePermissionStore()
+const workflowStore = useWorkflowStore()
+let workflowTodoRefreshTimer = null
 
 const sidebarRouters = computed(() => permissionStore.sidebarRouters)
 const showLogo = computed(() => settingsStore.sidebarLogo)
@@ -65,6 +68,40 @@ const activeMenu = computed(() => {
     return meta.activeMenu
   }
   return path
+})
+
+function refreshWorkflowTodoCount(force = false) {
+  workflowStore.fetchTodoCount(force).catch(() => {})
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    refreshWorkflowTodoCount(true)
+  }
+}
+
+function handleWindowFocus() {
+  refreshWorkflowTodoCount(true)
+}
+
+onMounted(() => {
+  refreshWorkflowTodoCount(true)
+  workflowTodoRefreshTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      refreshWorkflowTodoCount()
+    }
+  }, 60000)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('focus', handleWindowFocus)
+})
+
+onBeforeUnmount(() => {
+  if (workflowTodoRefreshTimer) {
+    window.clearInterval(workflowTodoRefreshTimer)
+    workflowTodoRefreshTimer = null
+  }
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('focus', handleWindowFocus)
 })
 </script>
 

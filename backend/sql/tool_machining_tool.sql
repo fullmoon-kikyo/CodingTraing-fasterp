@@ -2,6 +2,18 @@
 
 update sys_menu set visible = '1', status = '1' where menu_id = 4 and menu_name = '若依官网';
 
+insert into sys_dict_type(dict_id, dict_name, dict_type, status, create_by, create_time, remark)
+select 100, '刀具使用状态', 'tool_usage_status', '0', 'admin', sysdate(), '刀具业务使用状态列表'
+where not exists (select 1 from sys_dict_type where dict_type = 'tool_usage_status');
+
+insert into sys_dict_data(dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class, is_default, status, create_by, create_time, update_by, update_time, remark)
+select 20100, 1, '生效', '0', 'tool_usage_status', '', 'success', 'Y', '0', 'admin', sysdate(), '', null, '生效状态'
+where not exists (select 1 from sys_dict_data where dict_type = 'tool_usage_status' and dict_value = '0');
+
+insert into sys_dict_data(dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class, is_default, status, create_by, create_time, update_by, update_time, remark)
+select 20101, 2, '失效', '1', 'tool_usage_status', '', 'danger', 'N', '0', 'admin', sysdate(), '', null, '失效状态'
+where not exists (select 1 from sys_dict_data where dict_type = 'tool_usage_status' and dict_value = '1');
+
 create table if not exists tool_machining_tool (
   tool_id bigint not null auto_increment comment '刀具ID',
   material_code varchar(64) not null comment '刀具物料编码',
@@ -11,9 +23,9 @@ create table if not exists tool_machining_tool (
   tool_model varchar(100) default '' comment '刀具型号',
   tool_category varchar(100) default '' comment '刀具类别',
   manufacturer varchar(100) default '' comment '生产厂家',
-  status char(1) default '0' comment '状态（0正常 1停用）',
+  status char(1) default '0' comment '状态（0生效 1失效）',
   material_version varchar(10) not null default 'A01' comment '物料版本',
-  material_status varchar(20) not null default 'draft' comment '物料状态（draft草稿 processing审签中 effective生效）',
+  material_status varchar(20) not null default 'draft' comment '物料状态（draft草稿 processing审签中 effective已归档）',
   approval_status varchar(20) not null default 'draft' comment '流程状态（draft待提交 processing审批流 effective审签完成 rejected驳回 change_processing变更审批中 changing变更中 change_rejected变更驳回）',
   change_apply_by varchar(64) default null comment '变更申请人',
   process_instance_id varchar(64) default null comment '流程实例ID',
@@ -37,9 +49,9 @@ create table if not exists tool_machining_tool_version (
   tool_model varchar(100) default '' comment '刀具型号',
   tool_category varchar(100) default '' comment '刀具类别',
   manufacturer varchar(100) default '' comment '生产厂家',
-  status char(1) default '0' comment '状态（0正常 1停用）',
+  status char(1) default '0' comment '状态（0生效 1失效）',
   material_version varchar(10) not null comment '物料版本',
-  material_status varchar(20) not null default 'effective' comment '物料状态',
+  material_status varchar(20) not null default 'effective' comment '物料状态（draft草稿 processing审签中 effective已归档）',
   approval_status varchar(20) not null default 'effective' comment '流程状态',
   process_instance_id varchar(64) default null comment '流程实例ID',
   process_definition_key varchar(100) default null comment '流程定义Key',

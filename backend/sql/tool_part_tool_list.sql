@@ -17,7 +17,7 @@ create table if not exists tool_part_tool_list (
   manufacturer varchar(100) default '' comment '生产厂家快照',
   tool_life decimal(18,4) default null comment '刀具寿命',
   tool_life_unit varchar(32) default '' comment '寿命单位',
-  status char(1) default '0' comment '状态（0正常 1停用）',
+  status char(1) default '0' comment '状态（0生效 1失效）',
   approval_status varchar(20) not null default 'draft' comment '流程状态（draft待提交 processing审签中 effective审签完成 rejected驳回）',
   process_instance_id varchar(64) default null comment '流程实例ID',
   process_definition_key varchar(100) default null comment '流程定义Key',

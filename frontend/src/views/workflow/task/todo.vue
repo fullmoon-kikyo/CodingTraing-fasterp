@@ -59,8 +59,10 @@
 <script setup name="WorkflowTodo">
 import { listWorkflowTodo, completeWorkflowTask, rejectWorkflowTask } from "@/api/workflow/task"
 import { listWorkflowProcessHistory } from "@/api/workflow/process"
+import useWorkflowStore from "@/store/modules/workflow"
 
 const { proxy } = getCurrentInstance()
+const workflowStore = useWorkflowStore()
 
 const loading = ref(true)
 const taskList = ref([])
@@ -92,6 +94,7 @@ function getList() {
   loading.value = true
   listWorkflowTodo().then(response => {
     taskList.value = response.rows || []
+    workflowStore.setTodoCount(response.total)
     loading.value = false
   })
 }
